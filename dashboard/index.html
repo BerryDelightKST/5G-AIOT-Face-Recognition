@@ -124,16 +124,37 @@ let lastSeenTimestamp = null;
 function parseGoogleSheet(text) {
   const json = JSON.parse(text.substring(47).slice(0, -2));
   return json.table.rows.map(r => ({
-    timestamp: r.c[0]?.v,
-    name: r.c[1]?.v || "Unknown"
+    timestamp: r.c[0]?.v || null,
+    name: r.c[1]?.v?.trim() || "Unknown User"
   }));
 }
 
+
 function splitTimestamp(ts) {
   if (!ts) return { date: "--", time: "--" };
-  const [date, time] = ts.split(" ");
+
+  let d;
+
+  // If Google sends Date object
+  if (typeof ts === "string") {
+    d = new Date(ts.replace(" ", "T"));
+  } else {
+    d = new Date(ts);
+  }
+
+  const date = d.toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric"
+  });
+
+  const time = d.toLocaleTimeString("en-GB", {
+    hour12: false
+  });
+
   return { date, time };
 }
+
 
 function updateTable(data) {
   const table = document.getElementById("logTable");
@@ -146,9 +167,10 @@ function updateTable(data) {
     const { date, time } = splitTimestamp(row.timestamp);
 
     const personClass =
-      row.name.toLowerCase() === "unknown"
-        ? "person-unknown"
-        : "person-known";
+    row.name.toLowerCase().includes("unknown")
+    ? "person-unknown"
+    : "person-known";
+
 
     tr.innerHTML = `
       <td>${date}</td>
