@@ -70,6 +70,17 @@
       transition: background-color 1.5s ease;
     }
 
+    /* Person status colors */
+    .person-known {
+      color: #22c55e;
+      font-weight: 500;
+    }
+
+    .person-unknown {
+      color: #ef4444;
+      font-weight: 700;
+    }
+
     .footer {
       margin-top: 10px;
       font-size: 0.85em;
@@ -90,12 +101,13 @@
 <table>
   <thead>
     <tr>
-      <th>Timestamp</th>
+      <th>Date</th>
+      <th>Time</th>
       <th>Person</th>
     </tr>
   </thead>
   <tbody id="logTable">
-    <tr><td colspan="2">Loading...</td></tr>
+    <tr><td colspan="3">Loading...</td></tr>
   </tbody>
 </table>
 
@@ -117,6 +129,12 @@ function parseGoogleSheet(text) {
   }));
 }
 
+function splitTimestamp(ts) {
+  if (!ts) return { date: "--", time: "--" };
+  const [date, time] = ts.split(" ");
+  return { date, time };
+}
+
 function updateTable(data) {
   const table = document.getElementById("logTable");
   table.innerHTML = "";
@@ -125,17 +143,24 @@ function updateTable(data) {
 
   data.forEach((row, index) => {
     const tr = document.createElement("tr");
+    const { date, time } = splitTimestamp(row.timestamp);
+
+    const personClass =
+      row.name.toLowerCase() === "unknown"
+        ? "person-unknown"
+        : "person-known";
+
     tr.innerHTML = `
-      <td>${row.timestamp}</td>
-      <td>${row.name}</td>
+      <td>${date}</td>
+      <td>${time}</td>
+      <td class="${personClass}">${row.name}</td>
     `;
 
-    // Check newest row (last entry)
+    // Highlight newest row
     if (index === data.length - 1 && row.timestamp !== lastSeenTimestamp) {
       tr.classList.add("new-row");
       newEntryDetected = true;
       lastSeenTimestamp = row.timestamp;
-
       setTimeout(() => tr.classList.remove("new-row"), 2000);
     }
 
@@ -145,10 +170,11 @@ function updateTable(data) {
   // Update + blink latest banner only if new entry
   if (data.length > 0) {
     const latest = data[data.length - 1];
+    const { date, time } = splitTimestamp(latest.timestamp);
     const banner = document.getElementById("latestEntry");
 
     banner.innerText =
-      `Latest detection: ${latest.name} at ${latest.timestamp}`;
+      `Latest detection: ${latest.name} • ${date} ${time}`;
 
     if (newEntryDetected) {
       banner.classList.add("blink");
