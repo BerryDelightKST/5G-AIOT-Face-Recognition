@@ -2,63 +2,119 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Auto-Updating Dashboard</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <title>Smart Door Security Dashboard</title>
+
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; }
-    canvas { max-width: 800px; }
-    .stats { margin-top: 20px; }
+    body {
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: #e5e7eb;
+      padding: 20px;
+    }
+
+    h1 {
+      text-align: center;
+      color: #38bdf8;
+    }
+
+    .subtitle {
+      text-align: center;
+      margin-bottom: 20px;
+      opacity: 0.8;
+    }
+
+    .latest {
+      background: #020617;
+      border-left: 5px solid #22c55e;
+      padding: 15px;
+      margin-bottom: 20px;
+      font-size: 1.1em;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #020617;
+    }
+
+    th, td {
+      padding: 12px;
+      border-bottom: 1px solid #1e293b;
+      text-align: left;
+    }
+
+    th {
+      background: #020617;
+      color: #38bdf8;
+      text-transform: uppercase;
+      font-size: 0.85em;
+    }
+
+    tr:hover {
+      background: #020617;
+    }
+
+    .footer {
+      margin-top: 10px;
+      font-size: 0.85em;
+      opacity: 0.6;
+    }
   </style>
 </head>
+
 <body>
 
-<marquee><h1>Smart Door For Home Security</h1></marquee>
-<p>Updates every 5 seconds</p>
+<h1>🔐 Smart Door Security Log</h1>
+<div class="subtitle">Live updates every 5 seconds</div>
 
-<canvas id="myChart"></canvas>
+<div class="latest" id="latestEntry">
+  Latest detection: --
+</div>
 
-<div class="stats">
-  <h3>Latest Value:</h3>
-  <p id="latestValue">--</p>
+<table>
+  <thead>
+    <tr>
+      <th>Timestamp</th>
+      <th>Person Detected</th>
+    </tr>
+  </thead>
+  <tbody id="logTable">
+    <tr><td colspan="2">Loading...</td></tr>
+  </tbody>
+</table>
+
+<div class="footer">
+  Smart Door Camera • Event Log
 </div>
 
 <script>
 const SHEET_ID = "1Ku72W1Kg63sP465j5kj0mKpm872_lCRF_oWsq-9m4eM";
 const URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json`;
 
-let chart;
-
 function parseGoogleSheet(text) {
   const json = JSON.parse(text.substring(47).slice(0, -2));
   return json.table.rows.map(r => ({
-    time: r.c[0]?.v,
-    value: r.c[1]?.v
-  }));
+    timestamp: r.c[0]?.v,
+    name: r.c[1]?.v || "Unknown"
+  })).reverse(); // latest on top
 }
 
-function updateDashboard(data) {
-  const labels = data.map(d => d.time);
-  const values = data.map(d => d.value);
+function updateTable(data) {
+  const table = document.getElementById("logTable");
+  table.innerHTML = "";
 
-  document.getElementById("latestValue").innerText =
-    values[values.length - 1];
+  data.forEach(row => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${row.timestamp}</td>
+      <td>${row.name}</td>
+    `;
+    table.appendChild(tr);
+  });
 
-  if (!chart) {
-    chart = new Chart(document.getElementById("myChart"), {
-      type: "line",
-      data: {
-        labels,
-        datasets: [{
-          label: "Value",
-          data: values,
-          tension: 0.3
-        }]
-      }
-    });
-  } else {
-    chart.data.labels = labels;
-    chart.data.datasets[0].data = values;
-    chart.update();
+  if (data.length > 0) {
+    document.getElementById("latestEntry").innerText =
+      `Latest detection: ${data[0].name} at ${data[0].timestamp}`;
   }
 }
 
@@ -67,18 +123,14 @@ function loadData() {
     .then(res => res.text())
     .then(text => {
       const data = parseGoogleSheet(text);
-      updateDashboard(data);
+      updateTable(data);
     })
-    .catch(err => console.error("Error loading sheet:", err));
+    .catch(err => console.error("Sheet load error:", err));
 }
 
-// Initial load
 loadData();
-
-// Auto-update every 5 seconds kinda laggy ngl
 setInterval(loadData, 5000);
 </script>
 
 </body>
 </html>
-    
