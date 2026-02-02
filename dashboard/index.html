@@ -129,28 +129,42 @@ function parseGoogleSheet(text) {
   }));
 }
 
+function gsNumberToDate(n) {
+  if (!n) return null;
+  const msPerDay = 24 * 60 * 60 * 1000;
+  const epoch = new Date(Date.UTC(1899, 11, 30));
+  return new Date(epoch.getTime() + n * msPerDay);
+}
+
 
 function splitTimestamp(ts) {
   if (!ts) return { date: "--", time: "--" };
 
   let d;
 
-  // If Google sends Date object
-  if (typeof ts === "string") {
-    d = new Date(ts.replace(" ", "T"));
-  } else {
-    d = new Date(ts);
+  if (typeof ts === "number") {
+    // numeric Google Sheets date
+    d = gsNumberToDate(ts);
+  } else if (typeof ts === "string") {
+    // Check if it matches Date(y,m,d,h,m,s)
+    const match = ts.match(/Date\((\d+),(\d+),(\d+),(\d+),(\d+),(\d+)\)/);
+    if (match) {
+      const [_, y, m, day, h, min, s] = match.map(Number);
+      d = new Date(y, m, day, h, min, s);
+    } else {
+      // fallback for ISO-like string
+      d = new Date(ts.replace(" ", "T"));
+    }
   }
+
+  if (!d || isNaN(d)) return { date: "--", time: "--" };
 
   const date = d.toLocaleDateString("en-GB", {
     day: "2-digit",
     month: "short",
     year: "numeric"
   });
-
-  const time = d.toLocaleTimeString("en-GB", {
-    hour12: false
-  });
+  const time = d.toLocaleTimeString("en-GB", { hour12: false });
 
   return { date, time };
 }
@@ -189,7 +203,6 @@ function updateTable(data) {
     table.appendChild(tr);
   });
 
-  // Update + blink latest banner only if new entry
   if (data.length > 0) {
     const latest = data[data.length - 1];
     const { date, time } = splitTimestamp(latest.timestamp);
